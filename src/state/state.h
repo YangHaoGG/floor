@@ -57,7 +57,7 @@ struct State
 State* state_new(const char *name, StateTrigger *trigger, void *ctx);
 void state_destroy(State *state);
 
-int state_run(State *state, event_t event, void *data);
+int state_trigger(State *state, event_t event, void *data);
 int state_reset(State *state);
 
 void* state_get_ctx(State *state);

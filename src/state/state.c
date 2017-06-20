@@ -213,7 +213,7 @@ void state_set_state(State *state, state_t next)
 	}
 }
 
-int state_run(State *state, event_t event, void *data)
+int state_trigger(State *state, event_t event, void *data)
 {
 	if (!state || !state_is_available(state)) {
 		return -1;
