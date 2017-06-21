@@ -90,6 +90,10 @@ StateTrigger* state_get_trigger(State *state)
 static
 int state_trigger_exit(State *state, state_t cur)
 {
+	if (!state_is_available(state)) {
+		return -1;
+	}
+
 	int ret = 0;
 	StateTrigger *trigger = state_get_trigger(state);
 
@@ -105,13 +109,17 @@ int state_trigger_exit(State *state, state_t cur)
 }
 
 static
-int state_trigger_enter(State *state, state_t cur)
+int state_trigger_enter(State *state, state_t from, state_t to)
 {
+	if (!state_is_available(state)) {
+		return -1;
+	}
+
 	int ret = 0;
 	StateTrigger *trigger = state_get_trigger(state);
 
 	if (trigger && trigger->enter) {
-		ret = trigger->enter(state, cur);
+		ret = trigger->enter(state, from, to);
 		if (ret) {
 			state_set_unavailable(state);
 			state_set_error(state, STATE_ENTER_FAILED);
@@ -124,6 +132,10 @@ int state_trigger_enter(State *state, state_t cur)
 static
 int state_trigger_run(State *state, state_t cur, event_t event, void *data)
 {
+	if (!state_is_available(state)) {
+		return -1;
+	}
+
 	int ret = 0;
 	StateTrigger *trigger = state_get_trigger(state);
 
@@ -184,11 +196,9 @@ State* state_new(const char *name, StateTrigger *trigger, void *ctx)
 	state->name = name;
 	state->trigger = trigger;
 	state->ctx = ctx;
+	state_set_available(state);
 
-	if (trigger->enter(state, state->state)) {
-		state->error = STATE_ENTER_FAILED;
-	}
-
+	(void)state_trigger_enter(state, 0, 0);
 	return state;
 }
 
@@ -222,6 +232,7 @@ int state_trigger(State *state, event_t event, void *data)
 	state_t cur = state->state;
 	state->event = event;
 
+retry:
 	if (state_trigger_run(state, cur, event, data)) {
 		return -1;
 	}
@@ -230,18 +241,33 @@ int state_trigger(State *state, event_t event, void *data)
 		if (state_trigger_exit(state, cur)) {
 			return -1;
 		}
-		if (state_trigger_enter(state, state->state)) {
+		if (state_trigger_enter(state, cur, state->state)) {
 			return -1;
 		}
-		if (state_trigger_run(state, state->state, state->event, data)) {
-			return -1;
-		}
+		cur = state->state;
+		event = state->event;
+		goto retry;
 	} else if (event != state->event) {
-		if (state_trigger_run(state, state->state, state->event, data)) {
-			return -1;
-		}
+		event = state->event;
+		goto retry;
 	}
 
 	return 0;
 }
 
+int state_reset(State *state) 
+{
+	if (!state) {
+		return -1;
+	}
+
+	if (state_is_available(state)) {
+		state_trigger_exit(state, state->state);
+	}
+
+	state_set_state(state, 0);
+	state_set_event(state, 0);
+	state_set_available(state);
+
+	return 0;
+}
