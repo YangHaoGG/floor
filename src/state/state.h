@@ -18,6 +18,10 @@
 #ifndef __STATE_H__
 #define __STATE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef unsigned char state_t;
 typedef unsigned char event_t;
 typedef unsigned char error_t;
@@ -40,20 +44,6 @@ struct StateTrigger
 	int (*exit)(State *state, state_t s);
 };
 
-struct State
-{
-	const char *name;
-
-	state_t state;
-	event_t event;
-	error_t error;
-	flag_t  flag;
-
-	StateTrigger *trigger;
-
-	void *ctx;
-};
-
 State* state_new(const char *name, StateTrigger *trigger, void *ctx);
 void state_destroy(State *state);
 
@@ -67,7 +57,11 @@ StateTrigger* state_set_trigger(State *state, StateTrigger *trigger);
 StateTrigger* state_get_trigger(State *state);
 
 const char* state_get_name(State *state);
-void state_set_state(State *state, state_t next);
-void state_set_event(State *state, event_t event);
+int state_set_state(State *state, state_t next);
+int state_set_event(State *state, event_t event);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

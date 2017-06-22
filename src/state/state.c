@@ -19,6 +19,22 @@
 #include <string.h>
 #include "state.h"
 
+struct State
+{
+	const char *name;
+
+	state_t state;
+	event_t event;
+	error_t error;
+
+	flag_t  available:1;
+	flag_t  noright:1;
+
+	StateTrigger *trigger;
+
+	void *ctx;
+};
+
 static
 State* state_malloc(size_t size)
 {
@@ -46,25 +62,45 @@ error_t state_get_error(State *state)
 static
 void state_set_available(State *state)
 {
-	state->flag |= 0x1;
+	state->available = 1;
 }
 
 static
 void state_set_unavailable(State *state)
 {
-	if (state->flag & 0x1) {
-		state->flag &= ~0x1;
-	}
+	state->available = 0;
 }
 
 static
 int state_is_available(State *state)
 {
-	if (state->flag & 0x1) {
+	if (state->available) {
 		return 1;
 	}
 
 	return 0;
+}
+
+static
+void state_set_noright(State *state)
+{
+	state->noright = 1;
+}
+
+static 
+void state_set_right(State *state)
+{
+	state->noright = 0;
+}
+
+static
+int state_has_right(State *state)
+{
+	if (state->noright) {
+		return 0;
+	}
+
+	return 1;
 }
 
 StateTrigger* state_set_trigger(State *state, StateTrigger *trigger)
@@ -98,7 +134,9 @@ int state_trigger_exit(State *state, state_t cur)
 	StateTrigger *trigger = state_get_trigger(state);
 
 	if (trigger && trigger->exit) {
+		state_set_noright(state);
 		ret = trigger->exit(state, cur);
+		state_set_right(state);
 		if (ret) {
 			state_set_unavailable(state);
 			state_set_error(state, STATE_EXIT_FAILED);
@@ -119,7 +157,9 @@ int state_trigger_enter(State *state, state_t from, state_t to)
 	StateTrigger *trigger = state_get_trigger(state);
 
 	if (trigger && trigger->enter) {
+		state_set_noright(state);
 		ret = trigger->enter(state, from, to);
+		state_set_right(state);
 		if (ret) {
 			state_set_unavailable(state);
 			state_set_error(state, STATE_ENTER_FAILED);
@@ -209,18 +249,24 @@ void state_destroy(State *state)
 	}
 }
 
-void state_set_event(State *state, event_t event)
+int state_set_event(State *state, event_t event)
 {
-	if (state) {
+	if (state && state_has_right(state)) {
 		state->event = event;
+		return 1;
 	}
+
+	return 0;
 }
 
-void state_set_state(State *state, state_t next)
+int state_set_state(State *state, state_t next)
 {
-	if (state) {
+	if (state && state_has_right(state)) {
 		state->state = next;
+		return 1;
 	}
+
+	return 0;
 }
 
 int state_trigger(State *state, event_t event, void *data)
