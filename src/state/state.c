@@ -27,7 +27,6 @@ struct State
 	event_t event;
 	error_t error;
 
-	flag_t  available:1;
 	flag_t  noright:1;
 
 	StateTrigger *trigger;
@@ -35,65 +34,49 @@ struct State
 	void *ctx;
 };
 
-static
+	static
 State* state_malloc(size_t size)
 {
 	return (State*)malloc(size);
 }
 
-static
+	static
 void state_free(State *state)
 {
 	free(state);
 }
 
-static
+	static
 void state_set_error(State *state, error_t error)
 {
 	state->error = error;
 }
 
-static
+	static
 error_t state_get_error(State *state)
 {
 	return state->error;
 }
 
-static
-void state_set_available(State *state)
-{
-	state->available = 1;
-}
-
-static
-void state_set_unavailable(State *state)
-{
-	state->available = 0;
-}
-
-static
+	static
 int state_is_available(State *state)
 {
-	if (state->available) {
-		return 1;
-	}
-
-	return 0;
+	return state->error ? 0 : 1;
 }
 
-static
+	static
 void state_set_noright(State *state)
 {
 	state->noright = 1;
 }
 
-static 
+	static 
 void state_set_right(State *state)
 {
 	state->noright = 0;
 }
 
-static
+	static
 int state_has_right(State *state)
 {
 	if (state->noright) {
@@ -105,40 +88,27 @@ int state_has_right(State *state)
 
 StateTrigger* state_set_trigger(State *state, StateTrigger *trigger)
 {
-	if (state) {
-		StateTrigger *old = state->trigger;
-		state->trigger = trigger;
-		return old;
-	}
-
-	return 0;
+	StateTrigger *old = state->trigger;
+	state->trigger = trigger;
+	return old;
 }
 
 StateTrigger* state_get_trigger(State *state)
 {
-	if (state) {
-		return state->trigger;
-	}
-
-	return 0;
+	return state->trigger;
 }
 
-static
-int state_trigger_exit(State *state, state_t cur)
+	static
+int state_trigger_exit(State *state)
 {
-	if (!state_is_available(state)) {
-		return -1;
-	}
-
 	int ret = 0;
 	StateTrigger *trigger = state_get_trigger(state);
 
 	if (trigger && trigger->exit) {
 		state_set_noright(state);
-		ret = trigger->exit(state, cur);
+		ret = trigger->exit(state);
 		state_set_right(state);
 		if (ret) {
-			state_set_unavailable(state);
 			state_set_error(state, STATE_EXIT_FAILED);
 		}
 	}
@@ -146,22 +116,17 @@ int state_trigger_exit(State *state, state_t cur)
 	return ret;
 }
 
-static
-int state_trigger_enter(State *state, state_t from, state_t to)
+	static
+int state_trigger_enter(State *state)
 {
-	if (!state_is_available(state)) {
-		return -1;
-	}
-
 	int ret = 0;
 	StateTrigger *trigger = state_get_trigger(state);
 
 	if (trigger && trigger->enter) {
 		state_set_noright(state);
-		ret = trigger->enter(state, from, to);
+		ret = trigger->enter(state);
 		state_set_right(state);
 		if (ret) {
-			state_set_unavailable(state);
 			state_set_error(state, STATE_ENTER_FAILED);
 		}
 	}
@@ -169,20 +134,15 @@ int state_trigger_enter(State *state, state_t from, state_t to)
 	return ret;
 }
 
-static
-int state_trigger_run(State *state, state_t cur, event_t event, void *data)
+	static
+int state_trigger_run(State *state, event_t event, void *data)
 {
-	if (!state_is_available(state)) {
-		return -1;
-	}
-
 	int ret = 0;
 	StateTrigger *trigger = state_get_trigger(state);
 
 	if (trigger && trigger->run) {
-		ret = trigger->run(state, cur, event, data);
+		ret = trigger->run(state, event, data);
 		if (ret) {
-			state_set_unavailable(state);
 			state_set_error(state, STATE_RUN_FAILED);
 		}
 	}
@@ -192,37 +152,24 @@ int state_trigger_run(State *state, state_t cur, event_t event, void *data)
 
 void state_set_name(State *state, const char *name)
 {
-	if (state && name) {
-		state->name = name;
-	}
+	state->name = name;
 }
 
 const char* state_get_name(State *state)
 {
-	if (state) {
-		return state->name;
-	}
-	return 0;
+	return state->name;
 }
 
 void* state_set_ctx(State *state, void *ctx)
 {
-	if (state) {
-		void *old = state->ctx;
-		state->ctx = ctx;
-		return old;
-	}
-
-	return 0;
+	void *old = state->ctx;
+	state->ctx = ctx;
+	return old;
 }
 
 void* state_get_ctx(State *state)
 {
-	if (state) {
-		return state->ctx;
-	}
-
-	return 0;
+	return state->ctx;
 }
 
 State* state_new(const char *name, StateTrigger *trigger, void *ctx)
@@ -236,9 +183,8 @@ State* state_new(const char *name, StateTrigger *trigger, void *ctx)
 	state->name = name;
 	state->trigger = trigger;
 	state->ctx = ctx;
-	state_set_available(state);
 
-	(void)state_trigger_enter(state, 0, 0);
+	(void)state_trigger_enter(state);
 	return state;
 }
 
@@ -251,7 +197,7 @@ void state_destroy(State *state)
 
 int state_set_event(State *state, event_t event)
 {
-	if (state && state_has_right(state)) {
+	if (state_has_right(state)) {
 		state->event = event;
 		return 0;
 	}
@@ -259,9 +205,14 @@ int state_set_event(State *state, event_t event)
 	return -1;
 }
 
+event_t state_get_event(State *state)
+{
+	return state->event;
+}
+
 int state_set_state(State *state, state_t next)
 {
-	if (state && state_has_right(state)) {
+	if (state_has_right(state)) {
 		state->state = next;
 		return 0;
 	}
@@ -269,9 +220,14 @@ int state_set_state(State *state, state_t next)
 	return -1;
 }
 
+state_t state_get_state(State *state)
+{
+	return state->state;
+}
+
 int state_trigger(State *state, event_t event, void *data)
 {
-	if (!state || !state_is_available(state)) {
+	if (!state_is_available(state)) {
 		return -1;
 	}
 
@@ -279,15 +235,15 @@ int state_trigger(State *state, event_t event, void *data)
 	state->event = event;
 
 retry:
-	if (state_trigger_run(state, cur, event, data)) {
+	if (state_trigger_run(state, event, data)) {
 		return -1;
 	}
 
 	if (cur != state->state) {
-		if (state_trigger_exit(state, cur)) {
+		if (state_trigger_exit(state)) {
 			return -1;
 		}
-		if (state_trigger_enter(state, cur, state->state)) {
+		if (state_trigger_enter(state)) {
 			return -1;
 		}
 		cur = state->state;
@@ -307,14 +263,10 @@ int state_reset(State *state)
 		return -1;
 	}
 
-	if (state_is_available(state)) {
-		state_trigger_exit(state, state->state);
-	}
-
 	state_set_state(state, 0);
 	state_set_event(state, 0);
-	state_set_available(state);
 	state_set_right(state);
+	state_set_error(state, 0);
 
 	return 0;
 }

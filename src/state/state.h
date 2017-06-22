@@ -39,9 +39,9 @@ enum StateError
 
 struct StateTrigger
 {
-	int (*enter)(State *state, state_t from, state_t to);
-	int (*run)(State *state, state_t s, event_t e, void *data);
-	int (*exit)(State *state, state_t s);
+	int (*enter)(State *state);
+	int (*run)(State *state, event_t e, void *data);
+	int (*exit)(State *state);
 };
 
 State* state_new(const char *name, StateTrigger *trigger, void *ctx);
@@ -58,7 +58,9 @@ StateTrigger* state_get_trigger(State *state);
 
 const char* state_get_name(State *state);
 int state_set_state(State *state, state_t next);
+state_t state_get_state(State *state);
 int state_set_event(State *state, event_t event);
+event_t state_get_event(State *state);
 
 #ifdef __cplusplus
 }

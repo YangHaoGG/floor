@@ -46,14 +46,10 @@ int parse_init(State *state, event_t ev, void *data)
 	(void)data;
 	if (ev == ON_REQUEST) {
 		state_set_state(state, PARSE_REQUEST_LINE);
-		state_set_event(state, RCV_DATA);
-		//printf("here 1\n");
-		return 0;
+		return state_set_event(state, RCV_DATA);
 	} else if (ev == ON_RESPONSE) {
 		state_set_state(state, PARSE_RESPONSE_LINE);
-		state_set_event(state, RCV_DATA);
-		//printf("here 2\n");
-		return 0;
+		return state_set_event(state, RCV_DATA);
 	}
 	return -1;
 }
@@ -69,7 +65,6 @@ int parse_request_line(State *state, event_t ev, void *data)
 	const char *begin = *param;
 	const char *end = strstr(begin, "\r\n");
 	if (!end) {
-		//printf("here 3\n");
 		return 0;
 	}
 
@@ -156,9 +151,10 @@ int (*parse_trigger_caller[PARSE_FAILED])(State *state, event_t ev, void *data) 
 	[PARSE_HEADER_END] = parse_header_end,
 };
 
-int parse_run(State *state, state_t cur, event_t event, void *data)
+int parse_run(State *state, event_t event, void *data)
 {
 	//printf("call state:%d, event %d\n", cur, event);
+	state_t cur = state_get_state(state);
 	if (parse_trigger_caller[cur]) {
 		return parse_trigger_caller[cur](state, event, data);
 	}
