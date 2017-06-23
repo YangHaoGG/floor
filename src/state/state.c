@@ -314,6 +314,7 @@ int state_reset(State *state)
 	state_set_state(state, 0);
 	state_set_event(state, 0);
 	state_set_available(state);
+	state_set_right(state);
 
 	return 0;
 }
