@@ -253,20 +253,20 @@ int state_set_event(State *state, event_t event)
 {
 	if (state && state_has_right(state)) {
 		state->event = event;
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return -1;
 }
 
 int state_set_state(State *state, state_t next)
 {
 	if (state && state_has_right(state)) {
 		state->state = next;
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return -1;
 }
 
 int state_trigger(State *state, event_t event, void *data)
