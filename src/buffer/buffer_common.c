@@ -16,6 +16,7 @@
  * =====================================================================================
  */
 #include <stdlib.h>
+#include <unistd.h>
 #include "buffer.h"
 #include "buffer_common.h"
 
@@ -88,6 +89,11 @@ int string_find(Buffer *buffer, BufferRange *out, char *src, size_t src_len, voi
 	return 1;
 }
 
+StringBuffer* buffer_iter(Buffer *head)
+{
+	return head->ops->iter(head);
+}
+
 int buffer_find(Buffer *head, BufferRange *out, size_t off, const char *str, size_t size)
 {
 	if (head->size < off) {
@@ -103,4 +109,14 @@ int buffer_find(Buffer *head, BufferRange *out, size_t off, const char *str, siz
 	in.size = head->size - off;
 
 	return head->ops->range_iter(head, &in, out, string_find, (void*)str, (void*)size);
+}
+
+ssize_t buffer_file_read(Buffer *head, size_t off, int fd, size_t size)
+{
+	return head->ops->fread(head, off, write, fd, size);
+}
+
+ssize_t buffer_file_write(Buffer *head, size_t off, int fd, size_t size)
+{
+	return head->ops->fwrite(head, off, read, fd, size);
 }

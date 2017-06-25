@@ -114,12 +114,88 @@ int string_buffer_range_iter(Buffer *head, BufferRange *in, BufferRange *out, pc
 	return iter(head, out, buffer->addr + in->left.off, in->size, pattern, param);
 }
 
+static
+ssize_t string_buffer_fread(Buffer *head, size_t off, writer call, int fd, size_t size)
+{
+	if (off >= head->size) {
+		return -1;
+	}
+
+	if (size > head->size - off) {
+		size = head->size - off;
+	}
+
+	StringBuffer *buffer = (StringBuffer*)head;
+	return call(fd, buffer->addr + off, size);
+}
+
+static 
+ssize_t string_buffer_fwrite(Buffer *head, size_t off, reader call, int fd, size_t size)
+{
+	if (off + size >= head->capability) {
+		size = head->capability - off;
+	}
+
+	StringBuffer *buffer = (StringBuffer*)head;
+	ssize_t len = call(fd, buffer->addr + off, size);
+	if (len < 0) {
+		return -1;
+	}
+
+	if (off + len > head->size) {
+		head->size = off + len;
+	}
+
+	return len;
+}
+
+static
+StringBuffer* string_buffer_iter(Buffer *head)
+{
+	return 0;
+}
+
+int string_buffer_tail_match(StringBuffer *buffer, const char *str, size_t size)
+{
+	Buffer *head = &buffer->head;
+	
+	ssize_t i = size - 1, j = head->size - 1;
+	int match = 0;
+	for (;i >= 0 && j >= 0; i--, j--) {
+		if (str[i] != buffer->addr[j]) {
+			break;
+		}
+		match++;
+	}
+
+	return match;
+}
+
+int string_buffer_head_match(StringBuffer *buffer, const char *str, size_t size)
+{
+	Buffer *head = &buffer->head;
+
+	ssize_t i = 0, count = size < head->size ? size : head->size;
+	int match = 0;
+	for (; i < count; i++) {
+		if (str[i] != buffer->addr[i]) {
+			break;
+		}
+		match++;
+	}
+
+	return match;
+}
+
 BufferOps g_buf_ops = {
 	.read = string_buffer_read,
 	.write = string_buffer_write,
+	.fread = string_buffer_fread,
+	.fwrite = string_buffer_fwrite,
 	.replace = string_buffer_replace,
 	.range_create = string_buffer_range_create,
-	.range_iter = string_buffer_range_iter,
+	//.range_iter = string_buffer_range_iter,
+	.iter = string_buffer_iter,
 };
 
 Buffer* get_string_buffer(StringBuffer *buffer)

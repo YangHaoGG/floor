@@ -21,6 +21,8 @@
 #include "buffer.h"
 
 typedef struct BufferOps BufferOps;
+typedef ssize_t (*reader)(int fd, void *dst, size_t size);
+typedef ssize_t (*writer)(int fd, const void *src, size_t size);
 
 struct Buffer {
 	BufferOps *ops;
@@ -33,12 +35,16 @@ struct Buffer {
 struct BufferOps {
 	ssize_t (*read)(Buffer *head, size_t off, char *out, size_t size);
 	ssize_t (*write)(Buffer *head, size_t off, const char *str, size_t size);
+	ssize_t (*fread)(Buffer *head, size_t off, writer call, int fd, size_t size);
+	ssize_t (*fwrite)(Buffer *head, size_t off, reader call, int fd, size_t size);
+	StringBuffer* (*iter)(Buffer *buffer);
 	ssize_t (*replace)(Buffer *head, size_t start, size_t end, const char *str, size_t size);
-	Buffer* (*iter)(Buffer *buffer);
 	int (*range_create)(Buffer *head, BufferRange *range, size_t off, size_t len);
-	int (*range_iter)(Buffer *head, BufferRange *in, BufferRange *out, pcall_t iter, void *pattern, void *param);
+	//int (*range_iter)(Buffer *head, BufferRange *in, BufferRange *out, pcall_t iter, void *pattern, void *param);
 };
 
 extern void buffer_init(Buffer *head, BufferOps *ops, size_t capability);
+extern int string_buffer_head_match(StringBuffer *buffer, const char *str, size_t size);
+extern int string_buffer_tail_match(StringBuffer *buffer, const char *str, size_t size);
 
 #endif 
