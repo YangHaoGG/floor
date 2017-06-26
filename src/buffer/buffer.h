@@ -28,23 +28,24 @@ extern "C" {
 typedef struct Buffer Buffer;
 typedef struct RawBuffer RawBuffer;
 typedef struct StringBuffer StringBuffer;
-typedef struct BufferPos BufferPos;
+typedef struct BufferIndex BufferIndex;
 typedef struct BufferRange BufferRange;
 
 typedef int (*pcall_t)(Buffer *buffer, BufferRange *out, char *src, size_t len, void *pattern, void *param);
 
-struct BufferPos {
+struct BufferIndex {
 	Buffer *pos;
 	size_t off;
 };
 
 struct BufferRange {
-	BufferPos left;
-	BufferPos right;
+	BufferIndex left;
+	BufferIndex right;
 	size_t size;
 };
 
-extern Buffer* get_string_buffer(StringBuffer *buffer);
+extern Buffer* string_buffer_get_head(StringBuffer *buffer);
+extern StringBuffer* string_buffer_next(StringBuffer *buffer);
 extern StringBuffer* string_buffer_init(void *data, size_t size);
 extern ssize_t buffer_read(Buffer *head, size_t off, char *out, size_t size);
 extern ssize_t buffer_write(Buffer *head, size_t off, const char *str, size_t size);

@@ -89,34 +89,95 @@ int string_find(Buffer *buffer, BufferRange *out, char *src, size_t src_len, voi
 	return 1;
 }
 
-StringBuffer* buffer_iter(Buffer *head)
-{
-	return head->ops->iter(head);
-}
-
 int buffer_find(Buffer *head, BufferRange *out, size_t off, const char *str, size_t size)
 {
 	if (head->size < off) {
 		return -1;
 	}
 
-	BufferRange in;
+	//skip offset when do left match
+	StringBuffer* left = head->ops->first(head);
+	if (!left) {
+		return -1;
+	}
 
-	in.left.pos = head;
-	in.left.off = off;
-	in.right.pos = head;
-	in.right.off = head->size;
-	in.size = head->size - off;
+	Buffer *buffer = string_buffer_get_head(left);
+	while (buffer->size < off) {
+		off -= buffer->size;
+		left = string_buffer_next(left);
+		if (!left) {
+			return -1;
+		}
+		buffer = string_buffer_get_head(left);
+	}
+	//start left match
+	ssize_t index, len;
+	while (1) {
+		index = string_buffer_off_match(left, off, str, size);
+		if (index < 0) {
+			goto next;
+		}
 
-	return head->ops->range_iter(head, &in, out, string_find, (void*)str, (void*)size);
+		//record left pos
+		out->left.pos = buffer;
+		out->left.off = index;
+
+		len = buffer->size - index;
+		if ((size_t)len < size) {
+			StringBuffer *right = left;
+			const char *sub = str;
+			size_t sub_size = size;
+
+			while (1) {
+				right = string_buffer_next(right);
+				if (!right) {
+					return -1;
+				}
+
+				sub_size -= len;
+				sub += len;
+
+				len = string_buffer_match(right, sub, sub_size);
+				if (len < 0) {
+					goto forward;
+				} else if ((size_t)len == sub_size) {
+					//record right pos
+					out->right.pos = string_buffer_get_head(right);
+					out->right.off = sub_size;
+					out->size = size;
+					return 0;
+				}
+			}
+		} else {
+			//record right pos
+			out->right.pos = buffer;
+			out->right.off = off + size;
+			out->size = size;
+			return 0;
+		}
+
+forward:
+		if (++off < buffer->size) {
+			continue;
+		}
+next:
+		off = 0;
+		left = string_buffer_next(left);
+		if (!left) {
+			return -1;
+		}
+		buffer = string_buffer_get_head(left);
+	}
+
+	return -1;
 }
 
 ssize_t buffer_file_read(Buffer *head, size_t off, int fd, size_t size)
 {
-	return head->ops->fread(head, off, write, fd, size);
+	return head->ops->fwrite(head, off, read, fd, size);
 }
 
 ssize_t buffer_file_write(Buffer *head, size_t off, int fd, size_t size)
 {
-	return head->ops->fwrite(head, off, read, fd, size);
+	return head->ops->fread(head, off, write, fd, size);
 }

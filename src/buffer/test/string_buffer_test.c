@@ -38,7 +38,7 @@ int main()
 	
 	int i = 0;
 	ssize_t totle = 0;
-	Buffer *head = get_string_buffer(buffer);
+	Buffer *head = string_buffer_get_head(buffer);
 	for (;i < 3; i++) {
 		totle += buffer_write(head, totle, str[i], strlen(str[i]));
 	}

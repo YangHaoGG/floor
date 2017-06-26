@@ -90,7 +90,7 @@ int string_buffer_range_create(Buffer *head, BufferRange *range, size_t off, siz
 		return -1;
 	}
 
-	BufferPos *pos = &range->left;
+	BufferIndex *pos = &range->left;
 	pos->pos = head;
 	pos->off = off;
 
@@ -102,6 +102,7 @@ int string_buffer_range_create(Buffer *head, BufferRange *range, size_t off, siz
 	return 0;
 }
 
+/* 
 static 
 int string_buffer_range_iter(Buffer *head, BufferRange *in, BufferRange *out, pcall_t iter, void *pattern, void *param)
 {
@@ -113,6 +114,7 @@ int string_buffer_range_iter(Buffer *head, BufferRange *in, BufferRange *out, pc
 	StringBuffer *buffer = (StringBuffer*)head;
 	return iter(head, out, buffer->addr + in->left.off, in->size, pattern, param);
 }
+*/
 
 static
 ssize_t string_buffer_fread(Buffer *head, size_t off, writer call, int fd, size_t size)
@@ -150,9 +152,50 @@ ssize_t string_buffer_fwrite(Buffer *head, size_t off, reader call, int fd, size
 }
 
 static
-StringBuffer* string_buffer_iter(Buffer *head)
+StringBuffer* string_buffer_first(Buffer *head)
 {
-	return 0;
+	return (StringBuffer*)head;
+}
+
+StringBuffer* string_buffer_next(StringBuffer *buffer)
+{
+	return (StringBuffer*)buffer->head.next;
+}
+
+ssize_t string_buffer_off_match(StringBuffer *buffer, size_t off, const char *str, size_t size)
+{
+	Buffer *head = (Buffer*)buffer;
+	if (head->size <= off) {
+		return -1;
+	}
+
+	size_t i, j, k;
+	for (i = off; i < head->size; i++) {
+		k = size < head->size - i ? size : head->size - i;
+		for (j = 0; j < k; j++) {
+			if (buffer->addr[i + j] != str[j]) {
+				break;
+			}
+		}
+		if (j == k) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+ssize_t string_buffer_match(StringBuffer *buffer, const char *str, size_t size)
+{
+	Buffer *head = (Buffer*)buffer;
+	size_t i, j = size < head->size ? size : head->size;
+	for (i = 0; i < j; i++) {
+		if (buffer->addr[i] != str[i]) {
+			return -1;
+		}
+	}
+
+	return j;
 }
 
 int string_buffer_tail_match(StringBuffer *buffer, const char *str, size_t size)
@@ -193,12 +236,13 @@ BufferOps g_buf_ops = {
 	.fread = string_buffer_fread,
 	.fwrite = string_buffer_fwrite,
 	.replace = string_buffer_replace,
+	.first = string_buffer_first,
+	//.next = string_buffer_next,
 	.range_create = string_buffer_range_create,
 	//.range_iter = string_buffer_range_iter,
-	.iter = string_buffer_iter,
 };
 
-Buffer* get_string_buffer(StringBuffer *buffer)
+Buffer* string_buffer_get_head(StringBuffer *buffer)
 {
 	return &buffer->head;
 }
